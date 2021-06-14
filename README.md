@@ -11,11 +11,19 @@ This is NCKU DSAI HW4. In this read me file, I will demonstrate how to run our c
 pip install -r requirements.txt
 cd code
 python main.py
+
 ```
 
 ## Competition
 The competition we attend is predict future sales on kaggle.[Link](https://www.kaggle.com/c/competitive-data-science-predict-future-sales)
 The goal in this competition is obvious. To predict the sales value in the future. RMSE as evaluation and ranking benchmark.
+
+---
+
+## Full Source Code (include preprocessed data)
+https://drive.google.com/file/d/1AEp-gv1t2wY_fIxtoClNG6nj-5zhr_0U/view?usp=sharing
+
+---
 
 ## Code
 In this section I will briefly describe how we design our code.
@@ -56,11 +64,6 @@ We try the following models.
 * Deep nueral network - GPU environment not permitted
 
 We use Light GBM as our final model.Specific mechanism can be find in our slides.
-
----
-
-## Full Source Code (include preprocessed data)
-https://drive.google.com/file/d/1AEp-gv1t2wY_fIxtoClNG6nj-5zhr_0U/view?usp=sharing
 
 ---
 
