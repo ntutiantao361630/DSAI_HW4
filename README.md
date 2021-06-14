@@ -5,6 +5,7 @@ This is NCKU DSAI HW4. In this read me file, I will demonstrate how to run our c
 
 !!!The preprocessed data is not uploaded due to file size limit. The TA of the class can get our full source code in the below link. Our best result on kaggle competition is not our final submit version because the model training time is above one hour.
 
+---
 
 ## Execution
 ```sh
@@ -13,6 +14,7 @@ cd code
 python main.py
 
 ```
+---
 
 ## Competition
 The competition we attend is predict future sales on kaggle.[Link](https://www.kaggle.com/c/competitive-data-science-predict-future-sales)
