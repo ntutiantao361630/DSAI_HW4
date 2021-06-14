@@ -72,8 +72,6 @@ https://docs.google.com/presentation/d/1um4vZ-wj9UeHzZp4CjvPU9EnJjlhM15c9_35MBN1
 ## Result
 The following picture is our best score.
 ![final result](./output/Kaggle_LeaderBoard.PNG)
-## Final Result
-![kaggle_1](./output/Kaggle_LeaderBoard.PNG)
 
 ---
 
