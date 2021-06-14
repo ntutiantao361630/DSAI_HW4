@@ -1,7 +1,7 @@
 # DSAI_HW4
 
 ## Introduction
-This is NCKU DSAI HW4. In this read me file, I will demonstrate how to run our code and briefly explain our idea in this competition.
+This is NCKU DSAI HW4. In this readme file, I will demonstrate how to run our code and briefly explain our idea in this competition.
 
 !!!The preprocessed data is not uploaded due to file size limit. The TA of the class can get our full source code in the below link. Our best result on kaggle competition is not our final submit version because the model training time is above one hour.
 
