@@ -1,18 +1,19 @@
+from sklearn.feature_selection import SelectKBest, f_regression
+from sklearn.feature_extraction.text import CountVectorizer
+import warnings
+from sklearn.metrics import silhouette_score
+from sklearn.decomposition import PCA
+from sklearn.cluster import AgglomerativeClustering
+import seaborn as sns
+import matplotlib.pyplot as plt
+from nltk.corpus import stopwords
 from utils import *
 from fuzzywuzzy import fuzz
 import re
 import gc
-from nltk.corpus import stopwords
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.cluster import AgglomerativeClustering
-from sklearn.decomposition import PCA
-from sklearn.metrics import silhouette_score
-import warnings
+import nltk
+nltk.download('stopwords')
 warnings.filterwarnings("ignore", module="sklearn")
-from nltk.corpus import stopwords
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.feature_selection import SelectKBest, f_regression
 
 
 def add_features(matrix, train, items, oldcols, shops):
@@ -53,9 +54,8 @@ def add_features(matrix, train, items, oldcols, shops):
         train = train.merge(items[["item_id", feature_name]], on="item_id", how="left")
         return matrix, train
 
-
     matrix, train = add_item_name_groups(matrix, train, items, 65)
-    
+
     # second
     def add_first_word_features(matrix, items=items, feature_name="artist_name_or_first_word"):
         # This extracts artist names for music categories and adds them as a feature.
@@ -116,11 +116,10 @@ def add_features(matrix, train, items, oldcols, shops):
         matrix = matrix.merge(items[["item_id", feature_name]], on="item_id", how="left",)
         return matrix
 
-
     matrix = add_first_word_features(
         matrix, items=items, feature_name="artist_name_or_first_word"
     )
-    
+
     # third
     def clean_item_name(string):
         # Removes bracketed terms, special characters and extra whitespace
@@ -133,14 +132,16 @@ def add_features(matrix, train, items, oldcols, shops):
 
     items["item_name_cleaned_length"] = items["item_name"].apply(clean_item_name).apply(len)
     items["item_name_length"] = items["item_name"].apply(len)
-    matrix = matrix.merge(items[['item_id', 'item_name_length', 'item_name_cleaned_length']], how='left', on='item_id')
+    matrix = matrix.merge(
+        items[['item_id', 'item_name_length', 'item_name_cleaned_length']], how='left', on='item_id')
     items = items.drop(columns=['item_name_length', 'item_name_cleaned_length'])
     print("Created name features")
     matrix, oldcols = shrink_mem_new_cols(matrix, oldcols)
-    
+
     # fourth
     def add_time_features(m, train, correct_item_cnt_day=False):
         from pandas.tseries.offsets import Day, MonthBegin, MonthEnd
+
         def item_shop_age_months(m):
             m["item_age"] = m.groupby("item_id")["date_block_num"].transform(
                 lambda x: x - x.min()
@@ -279,10 +280,10 @@ def add_features(matrix, train, items, oldcols, shops):
         return m
     matrix = add_time_features(matrix, train, False)
     print("Time features created")
-    
+
     # Fifth
     def add_price_features(matrix, train):
-    # Get mean prices per month from train dataframe
+        # Get mean prices per month from train dataframe
         price_features = train.groupby(["date_block_num", "item_id"]).item_price.mean()
         price_features = pd.DataFrame(price_features)
         price_features = price_features.reset_index()
@@ -326,8 +327,8 @@ def add_features(matrix, train, items, oldcols, shops):
     matrix = add_price_features(matrix, train)
     del(train)
     print("created price features")
-    
-    #six
+
+    # six
     matrix = matrix.merge(items[['item_id', 'item_category_id']], on='item_id', how='left')
 
     platform_map = {
@@ -353,7 +354,7 @@ def add_features(matrix, train, items, oldcols, shops):
         79: 2, 80: 2, 81: 0, 82: 0, 83: 0
     }
     matrix['supercategory_id'] = matrix['item_category_id'].map(supercat_map)
-    
+
     def add_city_codes(matrix, shops):
         shops.loc[
             shops.shop_name == 'Сергиев Посад ТЦ "7Я"', "shop_name"
@@ -375,7 +376,8 @@ def add_features(matrix, train, items, oldcols, shops):
         pt = matrix.query(f"date_block_num>{start_month} & date_block_num<={end_month}")
         if exclude is not None:
             pt = matrix[~matrix[clust_feature].isin(exclude)]
-        pt = pt.pivot_table(values=target_feature, columns=clust_feature, index=level_feature, fill_value=0, aggfunc=aggfunc)
+        pt = pt.pivot_table(values=target_feature, columns=clust_feature,
+                            index=level_feature, fill_value=0, aggfunc=aggfunc)
         pt = pt.transpose()
         pca = PCA(n_components=10)
         components = pca.fit_transform(pt)
@@ -383,7 +385,7 @@ def add_features(matrix, train, items, oldcols, shops):
         # Plot PCA explained variance
         sns.set_theme()
         features = list(range(pca.n_components_))
-        fig = plt.figure(figsize=(10,4))
+        fig = plt.figure(figsize=(10, 4))
         ax = fig.add_subplot(121)
     #     ax.bar(features, pca.explained_variance_ratio_, color="black")
         sns.barplot(x=features, y=pca.explained_variance_ratio_, ax=ax)
@@ -424,14 +426,18 @@ def add_features(matrix, train, items, oldcols, shops):
         for i, s in enumerate(pt.index):
             groups[s] = labels[i]
         return groups
-    category_group_dict = cluster_feature(matrix, 'item_cnt_month', 'item_category_id', 'date_block_num', n_components=2, n_clusters=4, aggfunc="mean", exclude =[])
+    category_group_dict = cluster_feature(matrix, 'item_cnt_month', 'item_category_id',
+                                          'date_block_num', n_components=2, n_clusters=4, aggfunc="mean", exclude=[])
     matrix['category_cluster'] = matrix['item_category_id'].map(category_group_dict)
-    shop_group_dict = cluster_feature(matrix, 'item_cnt_month', 'shop_id', 'item_category_id', n_components=4, n_clusters=4, aggfunc="mean", exclude=[36])
-    shop_group_dict[36] = shop_group_dict[37]  # Shop36 added separately because it only has one month of data
+    shop_group_dict = cluster_feature(matrix, 'item_cnt_month', 'shop_id',
+                                      'item_category_id', n_components=4, n_clusters=4, aggfunc="mean", exclude=[36])
+    # Shop36 added separately because it only has one month of data
+    shop_group_dict[36] = shop_group_dict[37]
     matrix['shop_cluster'] = matrix['shop_id'].map(shop_group_dict)
     gc.collect()
-    matrix, oldcols = shrink_mem_new_cols(matrix, oldcols)  # Use this function periodically to downcast dtypes to save memory
-    
+    # Use this function periodically to downcast dtypes to save memory
+    matrix, oldcols = shrink_mem_new_cols(matrix, oldcols)
+
     # eight
     def uniques(matrix, groupers, name, limitation=None):
         if limitation is not None:
@@ -505,7 +511,7 @@ def add_features(matrix, train, items, oldcols, shops):
 
     matrix = matrix.drop(columns=["unique_items_month", "name_group_unique_month"])
     matrix, oldcols = shrink_mem_new_cols(matrix, oldcols)
-    
+
     # nine
     def add_pct_change(
         matrix,
@@ -557,18 +563,19 @@ def add_features(matrix, train, items, oldcols, shops):
     matrix = add_pct_change(matrix, ["item_category_id"], "item_cnt_month", lag=12, clip_value=3,)
     gc.collect()
     matrix, oldcols = shrink_mem_new_cols(matrix, oldcols)
-    
+
     # ten
     shop_id = 16
     item_id = 482
-    im = matrix.query(f"shop_id=={shop_id} & item_id=={item_id}")[['date_block_num', 'item_cnt_month']]
+    im = matrix.query(f"shop_id=={shop_id} & item_id=={item_id}")[
+        ['date_block_num', 'item_cnt_month']]
     im['moving average'] = im['item_cnt_month'].ewm(halflife=1).mean()
     im['expanding mean'] = im['item_cnt_month'].expanding().mean()
     im['rolling 12 month mean'] = im['item_cnt_month'].rolling(window=12, min_periods=1).mean()
     im = im.set_index('date_block_num')
-    ax = im.plot(figsize=(12,5), marker='.', title='Time series averaging methods')
-    
-    #eleven
+    ax = im.plot(figsize=(12, 5), marker='.', title='Time series averaging methods')
+
+    # eleven
     def add_rolling_stats(
         matrix,
         features,
@@ -685,13 +692,13 @@ def add_features(matrix, train, items, oldcols, shops):
             #         source = source.reset_index()
             source["date_block_num"] += 1 - lag_offset
             return matrix.merge(source, on=["date_block_num"] + features, how="left")
-        
+
     matrix = add_rolling_stats(
-    matrix,
-    ["shop_id", "artist_name_or_first_word", "item_category_id", "item_age"],
-    window=12,
-    reshape_source=False,)
-    
+        matrix,
+        ["shop_id", "artist_name_or_first_word", "item_category_id", "item_age"],
+        window=12,
+        reshape_source=False,)
+
     matrix = add_rolling_stats(
         matrix,
         ["shop_id", "artist_name_or_first_word", "item_category_id", "new_item"],
@@ -792,10 +799,10 @@ def add_features(matrix, train, items, oldcols, shops):
 
     matrix = add_rolling_stats(matrix, ["platform_id"], window=12)
     matrix = add_rolling_stats(matrix, ["platform_id"], kind="ewm", window=1)
-    
+
     gc.collect()
     matrix, oldcols = shrink_mem_new_cols(matrix, oldcols)
-    
+
     # Summed sales & accurate windowed mean sales per day features
     matrix = add_rolling_stats(
         matrix,
@@ -821,7 +828,7 @@ def add_features(matrix, train, items, oldcols, shops):
     matrix["shop_id_item_id_day_mean_win_12"] = matrix[
         "shop_id_item_id_item_cnt_month_sum_rolling_sum_win_12"
     ] / matrix[["first_item_sale_days", "shop_open_days", "1year"]].min(axis=1)
-    matrix.loc[matrix.new_item == True, "item_id_day_mean_expanding",] = float("nan")
+    matrix.loc[matrix.new_item == True, "item_id_day_mean_expanding", ] = float("nan")
     matrix = matrix.drop(columns=["1year", "item_id_item_cnt_month_sum_expanding_sum"])
     matrix = add_rolling_stats(
         matrix,
@@ -853,7 +860,7 @@ def add_features(matrix, train, items, oldcols, shops):
     )
     gc.collect()
     matrix, oldcols = shrink_mem_new_cols(matrix, oldcols)
-    
+
     # twelve
     def simple_lag_feature(matrix, lag_feature, lags):
         for lag in lags:
@@ -870,12 +877,12 @@ def add_features(matrix, train, items, oldcols, shops):
                 newname,
             ] = 0
         return matrix
-    matrix = simple_lag_feature(matrix, 'item_cnt_month', lags=[1,2,3])
+    matrix = simple_lag_feature(matrix, 'item_cnt_month', lags=[1, 2, 3])
     matrix = simple_lag_feature(matrix, 'item_cnt_day_avg', lags=[1, 2, 3])
     matrix = simple_lag_feature(matrix, 'item_revenue_month', lags=[1])
     gc.collect()
     print("Lag features created")
-    
+
     # thirteen
     def create_apply_ME(
         matrix, grouping_fields, lags=[1], target="item_cnt_day_avg", aggfunc="mean"
@@ -918,7 +925,7 @@ def add_features(matrix, train, items, oldcols, shops):
     matrix = create_apply_ME(matrix, ["city_code", "item_id"])
     matrix = create_apply_ME(matrix, ["city_code", "item_name_group"])
     matrix["item_id_item_cnt_1_12_ratio"] = (
-    matrix["item_id_item_cnt_month_mean_lag_1"]
+        matrix["item_id_item_cnt_month_mean_lag_1"]
         / matrix["item_id_item_cnt_month_mean_rolling_mean_win_12"]
     )
     matrix["shop_id_item_id_item_cnt_1_12_ratio"] = (
@@ -947,7 +954,7 @@ def add_features(matrix, train, items, oldcols, shops):
         "item_id_item_cnt_month_mean_rolling_mean_win_12",
     ]
     matrix = matrix.drop(columns=surplus_columns)
-    
+
     # fourteen
     def name_token_feats(matrix, items, k=50, item_n_threshold=5, target_month_start=33):
         def name_correction(st):
@@ -993,7 +1000,7 @@ def add_features(matrix, train, items, oldcols, shops):
         tokencols = X.columns[selektor.get_support()]
         print(f"{k} word features selected")
         return items_bow[tokencols]
-    
+
     items = pd.read_csv("../data/items.csv")
     word_frame = name_token_feats(matrix, items, k=50, item_n_threshold=5)
     matrix = matrix.merge(word_frame, left_on='item_id', right_index=True, how='left')
